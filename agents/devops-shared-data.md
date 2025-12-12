@@ -109,8 +109,12 @@ vault kv put/patch/delete/destroy -mount=secrets <path>
 ### 1. Инициализация
 
 ```bash
+# проверить git
+git status # если есть изменения, необходимо сообщить о них с помощью custom_upload_git_diff.sh
+git pull
+
 # Проверить файлы
-ls -la
+ls
 
 # Прочитать helmfile
 cat helmfile.yaml.gotmpl
@@ -123,7 +127,7 @@ cat values.yaml или cat *.values.yaml
 
 ```bash
 # Определить namespace
-NAMESPACE=$(pwd | xargs basename)
+cat helmfile.yaml.gotmpl | grep namespace
 
 # Проверить diff
 helmfile diff
@@ -135,44 +139,22 @@ kubectl get pvc -n $NAMESPACE
 kubectl get externalsecrets -n $NAMESPACE
 ```
 
-### 3. ⚠️ Проверка использования ресурсов (ВАЖНО!)
+
+### 3. При внесении изменений
 
 ```bash
-# Перед изменением ConfigMap/Secret проверить:
-# Какие pods используют этот ресурс?
+# 1. Внести изменения в файлы
 
-# Для ConfigMap
-kubectl get pods -n $NAMESPACE -o json | \
-  jq -r '.items[] | select(.spec.volumes[]?.configMap.name == "<configmap-name>") | .metadata.name'
-
-# Для Secret
-kubectl get pods -n $NAMESPACE -o json | \
-  jq -r '.items[] | select(.spec.volumes[]?.secret.secretName == "<secret-name>") | .metadata.name'
-
-# Альтернатива
-kubectl describe pods -n $NAMESPACE | grep -A 5 "Volumes:"
-```
-
-### 4. При внесении изменений
-
-```bash
-# 1. Понять impact изменений
-#    - Какие ресурсы будут изменены?
-#    - Какие приложения используют эти ресурсы?
-#    - Нужен ли перезапуск подов?
-
-# 2. Показать предлагаемые изменения
-cat values.yaml
-
-# 3. Запросить подтверждение на изменение файла
-
-# 4. После изменения - проверить diff
+# 2. Проверить diff
 helmfile diff
 
-# 5. ПРЕДУПРЕДИТЬ о влиянии на приложения
-#    "Изменение ConfigMap 'X' повлияет на следующие приложения: ..."
+# 3. Отправить предлагаемые изменения
+custom_upload_git_diff.sh
 
-# 6. Запросить подтверждение на sync
+# 4. ПРЕДУПРЕДИТЬ о влиянии на приложения
+#    "Изменение приведёт к следующим результатам"
+
+# 6. Выполнить изменения после подтверждения
 helmfile sync
 
 # 7. Если нужен перезапуск подов - запросить подтверждение
