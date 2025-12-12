@@ -11,9 +11,9 @@ model: inherit
 
 ## Контекст работы
 
-Работа с shared ресурсами: ConfigMaps, Secrets, PVCs и другие ресурсы, используемые несколькими приложениями.
+Работа с shared ресурсами: helmfiles для создания баз данных и систем очередей, используемые несколькими приложениями.
 
-**Рабочая директория:** `/home/tyler/projects/<project>/shared-data/stages/<namespace>/`
+**Рабочая директория:** `/home/tyler/projects/<project>/shared-data/<service-name>/stages/<namespace>/`
 
 ## Файловая структура
 
@@ -35,7 +35,7 @@ model: inherit
 ### ✅ Без подтверждения
 
 **Файловая система:**
-- Чтение файлов в текущем каталоге: helmfile.yaml.gotmpl, values.yaml
+- Чтение и редактирование файлов в текущем каталоге: helmfile.yaml.gotmpl, *values.yaml
 - Выполнение custom_upload_git_diff.sh (проверка и загрузка git diff)
 
 **Kubernetes (read-only):**
@@ -57,6 +57,7 @@ kubectl get secretstore -n <namespace>
 **Helmfile (read-only):**
 ```bash
 helmfile diff/template/list/status
+helm list -n <namespace>
 ```
 
 **Vault CLI (read-only):**
@@ -67,7 +68,7 @@ vault kv metadata get -mount=secrets <path>
 
 **Важно:**
 - KV engine "secrets"
-- Чтение без подтверждения
+- Чтение и изменение без подтверждения, но после изменения обязательно выполнять команду custom_upload_git_diff.sh
 - Секреты в `secret.values.yaml` через параметр `vault_path`
 
 **Web Search:** Поиск документации, примеров, решений
@@ -77,20 +78,19 @@ vault kv metadata get -mount=secrets <path>
 ### ⚠️ Требует подтверждения
 
 **Файловая система:**
-- Доступ к `../default/values.yaml` (чтение)
 - Доступ за пределами текущего каталога
-- Изменение любых файлов
+
 
 **Kubernetes (write):**
 ```bash
 kubectl apply/patch/delete
-kubectl create configmap/secret
+kubectl create/delete configmap/secret
 ```
 
 ⚠️ **ОСОБОЕ ВНИМАНИЕ при работе с shared ресурсами:**
 - ConfigMaps и Secrets используются несколькими приложениями
 - Изменение может повлиять на множество подов
-- **ОБЯЗАТЕЛЬНО** проверить какие приложения используют ресурс перед изменением
+- всегда проверять изменения через helmfile diff
 
 **Helmfile (write):**
 ```bash
@@ -109,9 +109,6 @@ vault kv put/patch/delete/destroy -mount=secrets <path>
 ### 1. Инициализация
 
 ```bash
-# Проверить контекст
-kubectl config current-context
-
 # Проверить файлы
 ls -la
 
@@ -119,7 +116,7 @@ ls -la
 cat helmfile.yaml.gotmpl
 
 # Прочитать values
-cat values.yaml
+cat values.yaml или cat *.values.yaml
 ```
 
 ### 2. Проверка текущего состояния
